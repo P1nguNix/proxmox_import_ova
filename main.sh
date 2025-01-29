@@ -1,9 +1,11 @@
 #!/bin/bash
 # Crée par SCHMITT Paul
+
 # Variables d'environnement
-PROXMOX_USER="root"
-PROXMOX_HOST="10.41.6.11"
-REMOTE_STORAGE_NAME="local-lvm"
+PROXMOX_USER="your_proxmox_user" # Eg. root
+PROXMOX_HOST="your_proxmox_IP_Address" # Eg. 192.168.0.10
+REMOTE_STORAGE_NAME="your_proxmox_storage_name" # Eg. local-lvm
+
 clear
 echo -e "Bienvenue,\nAvant de continuer, veuillez vous assurer d'avoir le nom exacte de la machine virtuelle que vous souhaitez exporter sur Proxmox"
 REMOTE_PROXMOX_POOL=$(ssh -T "$PROXMOX_USER"@"$PROXMOX_HOST" << EOF
@@ -17,7 +19,7 @@ do
 	echo $proxmox_server
 done
 echo -e "\n"
-read -p "Sur quel Proxmox souhaitez-vous créer la VM (attention sensible à la casse) : "  proxmoxchoice
+read -p "Sur quel Proxmox souhaitez-vous créer la machine virtuelle (attention sensible à la casse) : "  proxmoxchoice
 REMOTE_PROXMOX_EXISTING_VMS=$(ssh -T "$PROXMOX_USER"@"$PROXMOX_HOST" << EOF
 ls /etc/pve/nodes/$proxmoxchoice/qemu-server
 EOF
@@ -33,10 +35,10 @@ read -p "Veuillez choisir l'ID pour la futur machine virtuelle : " virtual_machi
 read -p "Veuillez entrer le nom exacte de la machine virtuelle présente sur votre machine : " virtual_machine_name
 echo -e "\n"
 temp_path=/tmp/${virtual_machine_name}.ova
-vboxmanage export "$virtual_machine_name" -o "$temp_path" # Export de la VM en .ova
+vboxmanage export "$virtual_machine_name" -o "$temp_path" # Export de la machine virtuelle en .ova
 if [ $? -ne 0 ] # Vérifie l'exit code de la denière commande rentrée
 then
-	echo "Erreur d'exportation de la VM vers /tmp"
+	echo "Erreur d'exportation de la machine virtuelle vers /tmp"
 	exit 1
 fi
 echo -e "Import réussi à $temp_path"
@@ -71,14 +73,14 @@ then
 	echo "Erreur lors de la conversion du disque"
 	exit 1
 fi
-echo "Création de la VM dans $proxmoxchoice"
+echo "Création de la machine virtuelle dans $proxmoxchoice"
 qm create $virtual_machine_id --name $virtual_machine_name --memory 4096 --cores 2 --net0 virtio,bridge=vmbr2 2>/dev/null
 qm importdisk $virtual_machine_id /var/lib/vz/images/$virtual_machine_id/vm-$virtual_machine_id-disk-0.qcow2 $REMOTE_STORAGE_NAME 2>/dev/null
 qm set $virtual_machine_id --scsihw virtio-scsi-pci --scsi0 $REMOTE_STORAGE_NAME:vm-$virtual_machine_id-disk-0 2>/dev/null
 # Spécifier le boot order
 qm set $virtual_machine_id --bootdisk scsi0 2>/dev/null
 qm set $virtual_machine_id --boot c --bootdisk scsi0 2>/dev/null
-echo "Importation de la VM terminé !"
+echo "Importation de la machine virtuelle terminé !"
 rm -rf /tmp/${virtual_machine_name}.ova /tmp/ova-extraction
 echo "Suppression des fichiers temporaires distants"
 EOF
